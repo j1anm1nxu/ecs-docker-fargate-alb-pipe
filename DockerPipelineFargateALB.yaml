@@ -1,0 +1,804 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  SourceS3ObjectKey:
+    Type: String
+    Default: "source.zip"
+  ServiceName:
+    Type: String
+    Default: service-name
+  BusinessUnit:
+    Type: String
+    Default: it-ops
+  ApplicationName:
+    Type: String
+    Default: app-name
+  CodeBuildImage:
+    Type: String
+    Default: "aws/codebuild/docker:17.09.0"
+  ContainerPort:
+    Type: Number
+    Default: 80
+    Description: What port number the application inside the docker container is binding to
+  ContainerCpu:
+    Type: Number
+    Default: 256
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Default: 512
+    Description: How much memory in megabytes to give the container
+  DesiredCount:
+    Type: Number
+    Default: 2
+  MaxCapacity:
+    Type: Number
+    Default: 10
+  MinCapacity:
+    Type: Number
+    Default: 1
+  TargetCPUUtilization:
+    Type: Number
+    Default: 50
+  LoadBalancerSourceCidr:
+    Type: String
+    Default: ""
+  LoadBalancerSourceSecurityGroup:
+    Type: String
+    Default: ""
+  PrivateSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  NumberOfSubnets:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 4
+  IdleTimeoutValue:
+    Type: Number
+    Default: 60
+    MinValue: 1
+    MaxValue: 4000
+  PublicLoadBalancer:
+    Type: String
+    AllowedValues: ["true","false"]
+    Default: "true"
+  TaskRoleManagedPolicyArns:
+    Type: CommaDelimitedList
+    Default: ""
+  HealthCheckPath: 
+    Type: String
+    Default: '/'
+  CertificateArn:
+    Type: String
+    Default: ''
+  CentralizedALBLogBucket:
+    Type: String
+    Default: ''
+    Description: ALB Log bucket. Leave blank to create an app specific one
+  RedirectRoot:
+    Type: String
+    Default: "/"
+    Description: "The path to redirect requests from the root of the domain to, ex: '/multifocal/'."
+Conditions:
+  CreateALBLogBucketCondition: !Equals [ !Ref 'CentralizedALBLogBucket', '' ] 
+  LoadBalancerIngressCIDRCondition: !Not [ !Equals [ !Ref 'LoadBalancerSourceCidr', '' ] ]
+  LoadBalancerIngressSGCondition: !Not [ !Equals [ !Ref 'LoadBalancerSourceSecurityGroup', '' ] ]
+  PublicLoadBalancerCondition: !Equals [ !Ref PublicLoadBalancer, 'true' ]
+  TaskRoleAttachManagedPolicies: !Not [ !Equals [ !Join ['',!Ref TaskRoleManagedPolicyArns ],'' ] ]
+  SSLProvided: !Not [ !Equals [ !Ref CertificateArn, '' ] ]
+  RedirectConditionHTTP: !Not [ !Equals [ !Ref RedirectRoot, '/' ] ]
+  RedirectConditionHTTPS: !And [!Not [ !Equals [ !Ref CertificateArn, '' ] ], !Not [ !Equals [ !Ref RedirectRoot, '/' ] ]]
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${BusinessUnit}/${ApplicationName}/${ServiceName}"
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+              - Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource:
+                  - !Sub arn:aws:s3:::${SourceBucket}/*
+                  - !Sub arn:aws:s3:::${SourceBucket}
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+                  - s3:ListBucket
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - iam:PassRole
+
+  ArtifactBucket:
+    Properties:
+      Tags:
+        - Key: ApplicationName
+          Value: !Sub ${ApplicationName}
+        - Key: BusinessUnit
+          Value: !Sub ${BusinessUnit}
+        - Key: ServiceName
+          Value: !Sub ${ServiceName}
+    Type: AWS::S3::Bucket
+
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: ApplicationName
+          Value: !Sub ${ApplicationName}
+        - Key: BusinessUnit
+          Value: !Sub ${BusinessUnit}
+        - Key: ServiceName
+          Value: !Sub ${ServiceName}
+      VersioningConfiguration:
+        Status: Enabled
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Tags:
+        - Key: RepositoryUri
+          Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+        - Key: ApplicationName
+          Value: !Sub ${ApplicationName}
+        - Key: BusinessUnit
+          Value: !Sub ${BusinessUnit}
+        - Key: ServiceName
+          Value: !Sub ${ServiceName}
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - 
+                - echo "######################START SOURCE CONTENT##################"
+                - find . -type d && find . -type f -exec openssl sha1 "{}" \;
+                - echo "#######################END SOURCE CONTENT###################"
+                - $(aws ecr get-login --no-include-email)
+                - TAG="$(echo ${!CODEBUILD_RESOLVED_SOURCE_VERSION} | head -c 8)"
+                - IMAGE_URI="${!REPOSITORY_URI}:${!TAG}"
+            build:
+              commands:
+                - docker build --tag "${!IMAGE_URI}" .
+            post_build:
+              commands:
+                - docker push "${!IMAGE_URI}"
+                - printf '[{"name":"%s","imageUri":"%s"}]' "${ApplicationName}-${ServiceName}" "${!IMAGE_URI}" > images.json
+          artifacts:
+            files: images.json
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: !Ref CodeBuildImage
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: APPLICATION_NAME
+            Value: !Sub ${ApplicationName}
+          - Name: BUSINESS_UNIT
+            Value: !Sub ${BusinessUnit}
+          - Name: IMAGE_NAME
+            Value: !Sub ${ServiceName}
+      Name: !Sub "ecr-build-${BusinessUnit}-${ApplicationName}-${ServiceName}"
+      ServiceRole: !Ref CodeBuildServiceRole
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+          - ActionTypeId:
+              Category: Source
+              Owner: AWS
+              Provider: S3
+              Version: '1'
+            Configuration:
+              S3Bucket: !Ref SourceBucket
+              S3ObjectKey: !Ref SourceS3ObjectKey
+            Name: GetSourceFromS3
+            OutputArtifacts:
+            - Name: App
+            RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1   
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: !Ref 'ECSCluster'
+                ServiceName: !Ref Service
+                FileName: images.json
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+  CloudwatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "${AWS::StackName}-${ServiceName}-ContainerLogs"
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs-tasks.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+            - Effect: Allow
+              Action:
+                # Allow the ECS Tasks to download images from ECR
+                - 'ecr:GetAuthorizationToken'
+                - 'ecr:BatchCheckLayerAvailability'
+                - 'ecr:GetDownloadUrlForLayer'
+                - 'ecr:BatchGetImage'
+
+                # Allow the ECS tasks to upload logs to CloudWatch
+                - 'logs:CreateLogStream'
+                - 'logs:PutLogEvents'
+              Resource: '*'
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs-tasks.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns: !If [ TaskRoleAttachManagedPolicies, !Ref TaskRoleManagedPolicyArns, !Ref 'AWS::NoValue' ]
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Load Balancer SG to allow access to service
+      VpcId: !Ref 'VpcId'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: 0
+          ToPort: '65535'
+          CidrIp: 0.0.0.0/0
+
+  LoadBalancerSGIngressCIDR80:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: LoadBalancerIngressCIDRCondition
+    Properties:
+      Description: Load Balancer Ingress from CIDR Range
+      GroupId: !Ref 'LoadBalancerSecurityGroup'
+      IpProtocol: tcp
+      FromPort: "80"
+      ToPort: "80"
+      CidrIp: !Ref 'LoadBalancerSourceCidr'
+
+  LoadBalancerSGIngressCIDR443:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: LoadBalancerIngressCIDRCondition
+    Properties:
+      Description: Load Balancer Ingress from CIDR Range
+      GroupId: !Ref 'LoadBalancerSecurityGroup'
+      IpProtocol: tcp
+      FromPort: "443"
+      ToPort: "443"
+      CidrIp: !Ref 'LoadBalancerSourceCidr'
+
+
+  LoadBalancerSGIngressSG:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: LoadBalancerIngressSGCondition
+    Properties:
+      Description: Ingress from the public ALB
+      GroupId: !Ref 'LoadBalancerSecurityGroup'
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref 'LoadBalancerSourceSecurityGroup'
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: !If [ PublicLoadBalancerCondition, internet-facing, internal ]
+      LoadBalancerAttributes:
+       - Key: idle_timeout.timeout_seconds #The idle timeout value, in seconds. The valid range is 1-4000 seconds. The default is 60 seconds.
+         Value: !Ref IdleTimeoutValue
+       - Key: routing.http2.enabled #Indicates whether HTTP/2 is enabled. The value is true or false. The default is true. 
+         Value: 'true'
+       - Key: access_logs.s3.enabled #Indicates whether access logs are enabled. The value is true or false. The default is false.
+         Value: true
+       - Key: access_logs.s3.bucket #The name of the S3 bucket for the access logs. This attribute is required if access logs are enabled. The bucket must exist in the same region as the load balancer and have a bucket policy that grants Elastic Load Balancing permissions to write to the bucket.
+         Value: !If [CreateALBLogBucketCondition, !Ref ALBLogsBucket, !Ref CentralizedALBLogBucket]
+       - Key: access_logs.s3.prefix #The prefix for the location in the S3 bucket for the access logs.
+         Value: ''
+      Subnets: !If [ PublicLoadBalancerCondition, !Ref PublicSubnets, !Ref PrivateSubnets ]
+      SecurityGroups: [!Ref 'LoadBalancerSecurityGroup']
+  RedirectRootHTTP:
+    Condition: RedirectConditionHTTP
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+      - Type: redirect
+        RedirectConfig:
+          Host: '#{host}'
+          Path: !Ref RedirectRoot
+          Port: '#{port}'
+          Protocol: '#{protocol}'
+          Query: '#{query}'
+          StatusCode: HTTP_301
+      Conditions:
+      - Field: path-pattern
+        Values:
+        - "/"
+      ListenerArn: !Ref ApplicationLoadBalancerHTTPListener
+      Priority: 100
+  RedirectRootHTTPindex:
+    Condition: RedirectConditionHTTP
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+      - Type: redirect
+        RedirectConfig:
+          Host: '#{host}'
+          Path: !Ref RedirectRoot
+          Port: '#{port}'
+          Protocol: '#{protocol}'
+          Query: '#{query}'
+          StatusCode: HTTP_301
+      Conditions:
+      - Field: path-pattern
+        Values:
+        - "/index.html"
+      ListenerArn: !Ref ApplicationLoadBalancerHTTPListener
+      Priority: 101
+  RedirectRootHTTPS:
+    Condition: RedirectConditionHTTPS
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+      - Type: redirect
+        RedirectConfig:
+          Host: '#{host}'
+          Path: !Ref RedirectRoot
+          Port: '#{port}'
+          Protocol: '#{protocol}'
+          Query: '#{query}'
+          StatusCode: HTTP_301
+      Conditions:
+      - Field: path-pattern
+        Values:
+        - "/"
+      ListenerArn: !Ref ApplicationLoadBalancerHTTPSListener
+      Priority: 100
+  RedirectRootHTTPSindex:
+    Condition: RedirectConditionHTTPS
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+      - Type: redirect
+        RedirectConfig:
+          Host: '#{host}'
+          Path: !Ref RedirectRoot
+          Port: '#{port}'
+          Protocol: '#{protocol}'
+          Query: '#{query}'
+          StatusCode: HTTP_301
+      Conditions:
+      - Field: path-pattern
+        Values:
+        - "/index.html"
+      ListenerArn: !Ref ApplicationLoadBalancerHTTPSListener
+      Priority: 101
+  ApplicationLoadBalancerHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          Type: forward
+
+  ApplicationLoadBalancerHTTPSListener:
+    Condition: SSLProvided
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      Port: 443
+      Protocol: HTTPS
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          Type: forward
+
+  FargateContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the Fargate containers
+      VpcId: !Ref 'VpcId'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: 0
+          ToPort: '65535'
+          CidrIp: 0.0.0.0/0
+
+  EcsSecurityGroupIngressFromPublicALB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress from the public ALB
+      GroupId: !Ref 'FargateContainerSecurityGroup'
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref 'LoadBalancerSecurityGroup'
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref "ApplicationName"
+      Cpu: !Ref 'ContainerCpu'
+      Memory: !Ref 'ContainerMemory'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref 'ECSTaskExecutionRole'
+      TaskRoleArn: !Ref 'ECSTaskRole'
+      ContainerDefinitions:
+        - Name: !Sub "${ApplicationName}-${ServiceName}"
+          Cpu: !Ref 'ContainerCpu'
+          Memory: !Ref 'ContainerMemory'
+          Image: httpd
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'CloudwatchLogsGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: !Sub "${ApplicationName}-${ServiceName}"
+          PortMappings:
+            - ContainerPort: !Ref 'ContainerPort'
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: ApplicationLoadBalancerHTTPListener
+    Properties:
+      HealthCheckGracePeriodSeconds: 5
+      LoadBalancers:
+        - ContainerName: !Sub "${ApplicationName}-${ServiceName}"
+          ContainerPort: !Ref ContainerPort
+          LoadBalancerName: !Ref ApplicationLoadBalancer
+          TargetGroupArn: !Ref TargetGroup
+      ServiceName: !Sub "${ApplicationName}-${ServiceName}"
+      Cluster: !Ref 'ECSCluster'
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref 'DesiredCount'
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !Ref FargateContainerSecurityGroup
+          Subnets: !Ref PrivateSubnets
+      TaskDefinition: !Ref 'TaskDefinition'
+      LoadBalancers:
+        - ContainerName: !Sub "${ApplicationName}-${ServiceName}"
+          ContainerPort: !Ref 'ContainerPort'
+          TargetGroupArn: !Ref 'TargetGroup'
+
+  TargetGroup:
+    DependsOn: ApplicationLoadBalancer
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 6
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 2
+      HealthyThresholdCount: 2
+      Matcher: 
+        HttpCode: "200,301,302"
+      HealthCheckPath: !Ref HealthCheckPath
+      TargetType: ip
+      Port: !Ref 'ContainerPort'
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VpcId
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: Service
+    Properties:
+      MaxCapacity: !Ref MaxCapacity
+      MinCapacity: !Ref MinCapacity
+      ResourceId: !Join ['', [service/, !Ref 'ECSCluster', /, !Sub "${Service.Name}" ]]
+      RoleARN: !Sub "${AutoscalingRole.Arn}"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+  AlarmScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: StepPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref 'ScalableTarget'
+      StepScalingPolicyConfiguration:
+        AdjustmentType: PercentChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+        - MetricIntervalLowerBound: 0
+          ScalingAdjustment: 150
+  ALB500sAlarmScaleUp:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '10'
+      AlarmDescription: Alarm if our ALB generates too many HTTP 500s.
+      Period: '60'
+      AlarmActions: [!Ref 'AlarmScalingPolicy']
+      Namespace: AWS/ApplicationELB
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Sub "${ApplicationLoadBalancer.LoadBalancerFullName}"
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: HTTPCode_ELB_5XX_Count
+  CPUTargetTrackingScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: CPUTargetTracking
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: !Ref TargetCPUUtilization
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+  AutoscalingRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F3
+            reason: "This role used by autoscaling"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [application-autoscaling.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: service-autoscaling
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['application-autoscaling:*', 'cloudwatch:DescribeAlarms', 'cloudwatch:PutMetricAlarm',
+              'ecs:DescribeServices', 'ecs:UpdateService']
+            Resource: '*'
+  ALBLogsBucket:
+    Condition: CreateALBLogBucketCondition
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+    Type: AWS::S3::Bucket
+  ALBLogsBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Condition: CreateALBLogBucketCondition
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Id: ALBLogBucketPolicy
+        Statement:
+          - Sid: AllowELBServiceDropLogFiles
+            Action:
+              - 's3:PutObject'
+            Resource: !Sub '${ALBLogsBucket.Arn}/*AWSLogs/${AWS::AccountId}/*'
+            Effect: Allow
+            Principal:
+              AWS:
+              - '127311923021' # us-east-1
+              - '033677994240' # us-east-2
+              - '027434742980' # us-west-1
+              - '797873946194' # us-west-2
+              - '985666609251' # ca-central-1
+              - '054676820928' # eu-central-1
+              - '156460612806' # eu-west-1
+              - '652711504416' # eu-west-2
+              - '009996457667' # eu-west-3
+              - '582318560864' # ap-northeast-1
+              - '600734575887' # ap-northeast-2
+              - '383597477331' # ap-northeast-3
+              - '114774131450' # ap-southeast-1
+              - '783225319266' # ap-southeast-2
+              - '718504428378' # ap-south-1
+              - '507241528517' # sa-east-1
+      Bucket: !Ref ALBLogsBucket
+
+
+
+Outputs:
+  ALB500sAlarmScaleUp:
+    Value: !Ref ALB500sAlarmScaleUp
+  ALBLogsBucket:
+    Condition: CreateALBLogBucketCondition
+    Value: !Ref ALBLogsBucket
+  ALBLogsBucketPolicy:
+    Condition: CreateALBLogBucketCondition
+    Value: !Ref ALBLogsBucketPolicy
+  AlarmScalingPolicy:
+    Value: !Ref AlarmScalingPolicy
+  ApplicationLoadBalancer:
+    Value: !Ref ApplicationLoadBalancer
+  ApplicationLoadBalancerDNS:
+    Value: !Sub "${ApplicationLoadBalancer.DNSName}"
+  ApplicationLoadBalancerHTTPListener:
+    Value: !Ref ApplicationLoadBalancerHTTPListener
+  ApplicationLoadBalancerHTTPSListener:
+    Condition: SSLProvided
+    Value: !Ref ApplicationLoadBalancerHTTPSListener
+  ArtifactBucket:
+    Value: !Ref ArtifactBucket
+  AutoscalingRole:
+    Value: !Ref AutoscalingRole
+  CPUTargetTrackingScalingPolicy:
+    Value: !Ref CPUTargetTrackingScalingPolicy
+  CloudwatchLogsGroup:
+    Value: !Ref CloudwatchLogsGroup
+  CodeBuildProject:
+    Value: !Ref CodeBuildProject
+  CodeBuildServiceRole:
+    Value: !Ref CodeBuildServiceRole
+  CodePipelineServiceRole:
+    Value: !Ref CodePipelineServiceRole
+  ECSCluster:
+    Value: !Ref ECSCluster
+  ECSTaskExecutionRole:
+    Value: !Ref ECSTaskExecutionRole
+  ECSTaskRole:
+    Value: !Ref ECSTaskRole
+  EcsSecurityGroupIngressFromPublicALB:
+    Value: !Ref EcsSecurityGroupIngressFromPublicALB
+  FargateContainerSecurityGroup:
+    Value: !Ref FargateContainerSecurityGroup
+  LoadBalancerSGIngressSG:
+    Condition: LoadBalancerIngressSGCondition
+    Value: !Ref LoadBalancerSGIngressSG
+  LoadBalancerSecurityGroup:
+    Value: !Ref LoadBalancerSecurityGroup
+  Pipeline:
+    Value: !Ref Pipeline
+  RedirectRootHTTP:
+    Condition: RedirectConditionHTTP
+    Value: !Ref RedirectRootHTTP
+  RedirectRootHTTPS:
+    Condition: RedirectConditionHTTPS
+    Value: !Ref RedirectRootHTTPS
+  RedirectRootHTTPSindex:
+    Condition: RedirectConditionHTTPS
+    Value: !Ref RedirectRootHTTPSindex
+  RedirectRootHTTPindex:
+    Condition: RedirectConditionHTTP
+    Value: !Ref RedirectRootHTTPindex
+  Repository:
+    Value: !Ref Repository
+  ScalableTarget:
+    Value: !Ref ScalableTarget
+  Service:
+    Value: !Ref Service
+  SourceBucket:
+    Value: !Ref SourceBucket
+  TargetGroup:
+    Value: !Ref TargetGroup
+  TaskDefinition:
+    Value: !Ref TaskDefinition
+  PipelineUrl:
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline} 
