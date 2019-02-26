@@ -1,0 +1,44 @@
+{
+    "Vpcs": [
+        {
+            "CidrBlock": "172.31.0.0/16",
+            "DhcpOptionsId": "dopt-038a79f4972919a0f",
+            "State": "available",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "InstanceTenancy": "default",
+            "CidrBlockAssociationSet": [
+                {
+                    "AssociationId": "vpc-cidr-assoc-085e6cd36aee8d6b6",
+                    "CidrBlock": "172.31.0.0/16",
+                    "CidrBlockState": {
+                        "State": "associated"
+                    }
+                }
+            ],
+            "IsDefault": false,
+            "Tags": [
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "VPC"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                },
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                }
+            ]
+        }
+    ]
+}

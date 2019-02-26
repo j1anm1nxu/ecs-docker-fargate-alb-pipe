@@ -1,0 +1,102 @@
+[
+    {
+        "ParameterKey": "ApplicationName",
+        "ParameterValue": "windows-web-sites"
+    },
+    {
+        "ParameterKey": "BusinessUnit",
+        "ParameterValue": "it-ops"
+    },
+    {
+        "ParameterKey": "CentralizedALBLogBucket",
+        "ParameterValue": "cxoworkspace/CentralizedALBLogBucket"
+    },
+    {
+        "ParameterKey": "CertificateArn",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "CodeBuildImage",
+        "ParameterValue": "aws/codebuild/docker:17.09.0"
+    },
+    {
+        "ParameterKey": "ContainerCpu",
+        "ParameterValue": "1024"
+    },
+    {
+        "ParameterKey": "ContainerMemory",
+        "ParameterValue": "1024"
+    },
+    {
+        "ParameterKey": "ContainerPort",
+        "ParameterValue": "80"
+    },
+    {
+        "ParameterKey": "DesiredCount",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "HealthCheckPath",
+        "ParameterValue": "/"
+    },
+    {
+        "ParameterKey": "IdleTimeoutValue",
+        "ParameterValue": "60"
+    },
+    {
+        "ParameterKey": "LoadBalancerSourceCidr",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "LoadBalancerSourceSecurityGroup",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "MaxCapacity",
+        "ParameterValue": "10"
+    },
+    {
+        "ParameterKey": "MinCapacity",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "NumberOfSubnets",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "PrivateSubnets",
+        "ParameterValue": "subnet-0cfd4511f0f0e1d17,subnet-0b9433064d4ebdc7a,subnet-050ec5385b2faf383"
+    },
+    {
+        "ParameterKey": "PublicLoadBalancer",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "PublicSubnets",
+        "ParameterValue": "subnet-0cadce43eca585da1,subnet-0d3beca89677f17cd,subnet-0b95e01c5c531c126"
+    },
+    {
+        "ParameterKey": "RedirectRoot",
+        "ParameterValue": "/"
+    },
+    {
+        "ParameterKey": "ServiceName",
+        "ParameterValue": "windows-web-sites"
+    },
+    {
+        "ParameterKey": "SourceS3ObjectKey",
+        "ParameterValue": "source.zip"
+    },
+    {
+        "ParameterKey": "TargetCPUUtilization",
+        "ParameterValue": "50"
+    },
+    {
+        "ParameterKey": "TaskRoleManagedPolicyArns",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "VpcId",
+        "ParameterValue": "vpc-024d08bbeb9f388de"
+    }
+]

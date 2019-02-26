@@ -1,0 +1,250 @@
+{
+    "Subnets": [
+        {
+            "AvailabilityZone": "us-east-1a",
+            "AvailabilityZoneId": "use1-az4",
+            "AvailableIpAddressCount": 8167,
+            "CidrBlock": "172.31.0.0/19",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": true,
+            "State": "available",
+            "SubnetId": "subnet-0cadce43eca585da1",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "Network",
+                    "Value": "Public"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "Public subnet 1"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "PublicSubnet1"
+                }
+            ],
+            "SubnetArn": "arn:aws:ec2:us-east-1:535105329651:subnet/subnet-0cadce43eca585da1"
+        },
+        {
+            "AvailabilityZone": "us-east-1b",
+            "AvailabilityZoneId": "use1-az6",
+            "AvailableIpAddressCount": 8185,
+            "CidrBlock": "172.31.32.0/19",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": true,
+            "State": "available",
+            "SubnetId": "subnet-0d3beca89677f17cd",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "Public subnet 2"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "PublicSubnet2"
+                },
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "Network",
+                    "Value": "Public"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                }
+            ],
+            "SubnetArn": "arn:aws:ec2:us-east-1:535105329651:subnet/subnet-0d3beca89677f17cd"
+        },
+        {
+            "AvailabilityZone": "us-east-1a",
+            "AvailabilityZoneId": "use1-az4",
+            "AvailableIpAddressCount": 8187,
+            "CidrBlock": "172.31.96.0/19",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": false,
+            "State": "available",
+            "SubnetId": "subnet-0cfd4511f0f0e1d17",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "Private subnet 1A"
+                },
+                {
+                    "Key": "Network",
+                    "Value": "Private"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "PrivateSubnet1A"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                },
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                }
+            ],
+            "SubnetArn": "arn:aws:ec2:us-east-1:535105329651:subnet/subnet-0cfd4511f0f0e1d17"
+        },
+        {
+            "AvailabilityZone": "us-east-1c",
+            "AvailabilityZoneId": "use1-az1",
+            "AvailableIpAddressCount": 8185,
+            "CidrBlock": "172.31.160.0/19",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": false,
+            "State": "available",
+            "SubnetId": "subnet-0b9433064d4ebdc7a",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "PrivateSubnet3A"
+                },
+                {
+                    "Key": "Network",
+                    "Value": "Private"
+                },
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "Private subnet 3A"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                }
+            ],
+            "SubnetArn": "arn:aws:ec2:us-east-1:535105329651:subnet/subnet-0b9433064d4ebdc7a"
+        },
+        {
+            "AvailabilityZone": "us-east-1c",
+            "AvailabilityZoneId": "use1-az1",
+            "AvailableIpAddressCount": 8186,
+            "CidrBlock": "172.31.64.0/19",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": true,
+            "State": "available",
+            "SubnetId": "subnet-0b95e01c5c531c126",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                },
+                {
+                    "Key": "Network",
+                    "Value": "Public"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "PublicSubnet3"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "Public subnet 3"
+                }
+            ],
+            "SubnetArn": "arn:aws:ec2:us-east-1:535105329651:subnet/subnet-0b95e01c5c531c126"
+        },
+        {
+            "AvailabilityZone": "us-east-1b",
+            "AvailabilityZoneId": "use1-az6",
+            "AvailableIpAddressCount": 8185,
+            "CidrBlock": "172.31.128.0/19",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": false,
+            "State": "available",
+            "SubnetId": "subnet-050ec5385b2faf383",
+            "VpcId": "vpc-024d08bbeb9f388de",
+            "OwnerId": "535105329651",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "Private subnet 2A"
+                },
+                {
+                    "Key": "Network",
+                    "Value": "Private"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "PrivateSubnet2A"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c"
+                },
+                {
+                    "Key": "AWS_Solutions",
+                    "Value": "LandingZoneStackSet"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:535105329651:stack/StackSet-AWS-Landing-Zone-Baseline-PrimaryVPC-1c80f2e5-1b75-4123-8a4d-c4278792d51c/659f3360-28b3-11e9-82e2-0a1b7b252ffe"
+                }
+            ],
+            "SubnetArn": "arn:aws:ec2:us-east-1:535105329651:subnet/subnet-050ec5385b2faf383"
+        }
+    ]
+}
