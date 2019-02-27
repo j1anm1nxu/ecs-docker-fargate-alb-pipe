@@ -9,7 +9,7 @@
     },
     {
         "ParameterKey": "CentralizedALBLogBucket",
-        "ParameterValue": "cxoworkspace/CentralizedALBLogBucket"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "CertificateArn",
